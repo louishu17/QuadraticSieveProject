@@ -1,6 +1,14 @@
-from cmath import exp
 from math import sqrt
+from gaussian_eliminate import gaussian_elimiate
 
+
+def gcd(a,b): # Euclid's algorithm
+    if b == 0:
+        return a
+    elif a >= b:
+        return gcd(b,a % b)
+    else:
+        return gcd(b,a)
 
 def sieveOfEratosthenes(n):
     isPrime = [True for _ in range(n+1)]
@@ -20,6 +28,7 @@ def legendre(a,p):
 def mprint(M): #prints a matrix in readable form
     for row in M:
         print(row)
+
 #generates B-smooth factor base
 def find_base(N, B): 
     factor_base = []
@@ -101,6 +110,7 @@ def find_smooth(factor_base, N, I):
                     sieve_list[i] //= p
 
     B_smooth_nums = []
+    xlist = []
 
     for i in range(len(sieve_list)):
         #we have enough rows to achieve a linear dependence
@@ -109,8 +119,9 @@ def find_smooth(factor_base, N, I):
         #found a b-smooth number    
         if sieve_list[i] == 1 or sieve_list == -1:
             B_smooth_nums.append(sieve_seq[i])
+            xlist.append(i+root-I)
     
-    return B_smooth_nums
+    return B_smooth_nums, xlist
 
 """
 Finds how many times each factor in factor_base goes into n, returns list of all factors
@@ -139,21 +150,23 @@ def build_matrix(smooth_nums, factor_base):
     M = []
     factor_base.insert(0,-1)
 
-    for n in smooth_nums:
+    for index,n in enumerate(smooth_nums):
         exp_vector = [0] * len(factor_base)
         n_factors = factor(n, factor_base)
         for i in range(len(factor_base)):
             if factor_base[i] in n_factors:
                 exp_vector[i] = n_factors[factor_base[i]] % 2
         
+        #we found a square number already
         if 1 not in exp_vector:
-            return True, N
+            return True, n, index
         
         M.append(exp_vector)
     
     print("Matrix built:")
     mprint(M)
-    return(False, transpose(M))
+    return False, transpose(M), -1
+
 
 def transpose(matrix):
 #transpose matrix so columns become rows, makes list comp easier to work with
@@ -186,7 +199,7 @@ def QS(n, B, I):
 
     print("Looking for {} {}-smooth numbers...".format(F+1, B))
     #find B-smooth numbers, using sieve and Tonelli-Shanks
-    smooth_nums = find_smooth(factor_base, N, I)
+    smooth_nums, xlist = find_smooth(factor_base, N, I)
 
     print("Found {} smooth numbers.".format(len(smooth_nums)))
 
@@ -196,9 +209,18 @@ def QS(n, B, I):
         return("Not enough smooth numbers. Increase the sieve interval or size of the factor base.")
     
     print("Building exponent matrix...")
-    is_square, t_matrix = build_matrix(smooth_nums,factor_base)
-    #builds exponent matrix mod 2 from relations
+    #builds exponent matrix mod 2 from B-smooth numbers
+    #M_transpose_matrix is either the B-smooth matrix or just one B-smooth number that is a square
+    is_square, M_transpose_matrix, index = build_matrix(smooth_nums,factor_base)
+
+    #case when we found a B-smooth number that is a square
+    if is_square:
+        factor = gcd(xlist[index] + sqrt(M_transpose_matrix), N)
+        print("Found a square!")
+        return factor, N/factor
     
+    
+        
 
 if __name__ == "__main__":
     QS(8051, 300, 2500)
