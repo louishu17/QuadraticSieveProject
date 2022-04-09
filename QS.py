@@ -17,7 +17,7 @@ def legendre(a,p):
     return pow(a, (p-1) // 2, p)
 
 #generates B-smooth factor base
-def find_base(N, B):
+def find_base(N, B): 
     factor_base = []
     primes = sieveOfEratosthenes(B)
     print("Primes under " + str(B) + ": " + str(primes))
@@ -66,7 +66,7 @@ Find B-smooth numbers, using sieve and Tonelli-Shanks
 def find_smooth(factor_base, N, I):
     #generates a sequence from y(x) = x^2 - N starting from sqrt(N)
     def generate_sieve(N, I):
-        sieve_seq = [x**2 - N for x in range(root, root + I)]
+        sieve_seq = [x**2 - N for x in range(root-I, root + I)]
         return sieve_seq
     
     sieve_seq = generate_sieve(N,I)
@@ -87,8 +87,12 @@ def find_smooth(factor_base, N, I):
         residues = tonelli(N, p)
 
         for r in residues:
-            for i in range((r-root) % p, len(sieve_list), p):
+            for i in range((r-(root-I)) % p, len(sieve_list), p):
                 #get rid of all powers of p
+                while sieve_list[i] % p == 0:
+                    sieve_list[i] //= p
+            #negative direciton
+            for i in range(((r- (root-I)) % p) + I, 0, -p):
                 while sieve_list[i] % p == 0:
                     sieve_list[i] //= p
 
@@ -96,16 +100,22 @@ def find_smooth(factor_base, N, I):
 
     for i in range(len(sieve_list)):
         #we have enough rows to achieve a linear dependence
-        if len(B_smooth_nums) > len(factor_base) + 1:
+        if len(B_smooth_nums) >= len(factor_base) + 1:
             break
         #found a b-smooth number    
-        if sieve_list[i] == 1:
+        if sieve_list[i] == 1 or sieve_list == -1:
             B_smooth_nums.append(sieve_seq[i])
     
     return B_smooth_nums
 
+# """
+# Build exponent vectors mod 2 from B-smooth numbers, then combines into a matrix
+# """
+# def build_matrix(smooth_nums, factor_base):
+#     M = []
+#     factor_base.insert(0,-1)
 
-
+#     for n in smooth_nums:
 
 #main function
 def QS(n, B, I):
