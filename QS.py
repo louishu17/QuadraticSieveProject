@@ -87,12 +87,12 @@ def find_smooth(factor_base, N, I):
         residues = tonelli(N, p)
 
         for r in residues:
-            for i in range((r-(root-I)) % p, len(sieve_list), p):
+            for i in range((r-root+I) % p, len(sieve_list), p):
                 #get rid of all powers of p
                 while sieve_list[i] % p == 0:
                     sieve_list[i] //= p
             #negative direciton
-            for i in range(((r- (root-I)) % p) + I, 0, -p):
+            for i in range(((r-root+ I) % p) + I, 0, -p):
                 while sieve_list[i] % p == 0:
                     sieve_list[i] //= p
 
