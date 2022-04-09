@@ -215,11 +215,14 @@ def QS(n, B, I):
 
     #case when we found a B-smooth number that is a square
     if is_square:
-        factor = gcd(xlist[index] + sqrt(M_transpose_matrix), N)
+        factor = gcd(xlist[index] - sqrt(M_transpose_matrix), N)
         print("Found a square!")
         return factor, N/factor
+
+    #Need to find row dependency
     
     
+
         
 
 if __name__ == "__main__":
