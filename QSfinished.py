@@ -190,8 +190,8 @@ def build_matrix(smooth_nums,factor_base):
         
         M.append(exp_vector)
         
-    #print("Matrix built:")
-    #mprint(M)
+    print("Matrix built:")
+    mprint(M)
     return(False, transpose(M))
 
     

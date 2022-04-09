@@ -1,3 +1,4 @@
+from cmath import exp
 from math import sqrt
 
 
@@ -16,6 +17,9 @@ def sieveOfEratosthenes(n):
 def legendre(a,p):
     return pow(a, (p-1) // 2, p)
 
+def mprint(M): #prints a matrix in readable form
+    for row in M:
+        print(row)
 #generates B-smooth factor base
 def find_base(N, B): 
     factor_base = []
@@ -108,14 +112,58 @@ def find_smooth(factor_base, N, I):
     
     return B_smooth_nums
 
-# """
-# Build exponent vectors mod 2 from B-smooth numbers, then combines into a matrix
-# """
-# def build_matrix(smooth_nums, factor_base):
-#     M = []
-#     factor_base.insert(0,-1)
+"""
+Finds how many times each factor in factor_base goes into n, returns list of all factors
+"""
+def factor(n, factor_base):
+    factors = {}
 
-#     for n in smooth_nums:
+    if n < 0:
+        factors.append(-1)
+    for p in factor_base:
+        if p == -1:
+            continue
+        else:
+            while n % p == 0:
+                if p not in factors:
+                    factors[p] = 1
+                else:
+                    factors[p] += 1
+                n //= p
+    
+    return factors
+"""
+Build exponent vectors mod 2 from B-smooth numbers, then combines into a matrix
+"""
+def build_matrix(smooth_nums, factor_base):
+    M = []
+    factor_base.insert(0,-1)
+
+    for n in smooth_nums:
+        exp_vector = [0] * len(factor_base)
+        n_factors = factor(n, factor_base)
+        for i in range(len(factor_base)):
+            if factor_base[i] in n_factors:
+                exp_vector[i] = n_factors[factor_base[i]] % 2
+        
+        if 1 not in exp_vector:
+            return True, N
+        
+        M.append(exp_vector)
+    
+    print("Matrix built:")
+    mprint(M)
+    return(False, transpose(M))
+
+def transpose(matrix):
+#transpose matrix so columns become rows, makes list comp easier to work with
+    new_matrix = []
+    for i in range(len(matrix[0])):
+        new_row = []
+        for row in matrix:
+            new_row.append(row[i])
+        new_matrix.append(new_row)
+    return(new_matrix)
 
 #main function
 def QS(n, B, I):
@@ -143,6 +191,14 @@ def QS(n, B, I):
     print("Found {} smooth numbers.".format(len(smooth_nums)))
 
     print(smooth_nums)
+
+    if len(smooth_nums) < len(factor_base):
+        return("Not enough smooth numbers. Increase the sieve interval or size of the factor base.")
+    
+    print("Building exponent matrix...")
+    is_square, t_matrix = build_matrix(smooth_nums,factor_base)
+    #builds exponent matrix mod 2 from relations
+    
 
 if __name__ == "__main__":
     QS(8051, 300, 2500)
