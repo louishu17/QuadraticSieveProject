@@ -1,4 +1,6 @@
-from math import sqrt
+import numpy as np
+import math
+from math import sqrt, exp, log
 from gaussian_eliminate import gaussian_elimiate
 
 
@@ -9,6 +11,14 @@ def gcd(a,b): # Euclid's algorithm
         return gcd(b,a % b)
     else:
         return gcd(b,a)
+    
+def isqrt(n): # Newton's method, returns exact int for large squares
+    x = n
+    y = (x + 1) // 2
+    while y < x:
+        x = y
+        y = (x + n // x) // 2
+    return x
 
 def sieveOfEratosthenes(n):
     isPrime = [True for _ in range(n+1)]
@@ -165,7 +175,8 @@ def build_matrix(smooth_nums, factor_base):
     
     print("Matrix built:")
     mprint(M)
-    return False, transpose(M), -1
+    # return False, transpose(M), -1
+    return False, M, -1
 
 
 def transpose(matrix):
@@ -177,6 +188,70 @@ def transpose(matrix):
             new_row.append(row[i])
         new_matrix.append(new_row)
     return(new_matrix)
+
+def gaussian_elimiate(matrix):
+    m = len(matrix)
+    n = len(matrix[0])
+    print(m)
+    print(n)
+    # if there are less rows than columns, then there wouldn't be a linear dependence
+    if m < n:
+        print("error")
+        raise Exception("not enough data") 
+    # set a m length array to locate the rows with pivots
+    pivot = [0]*m
+   
+    pivot_dict = {}
+    
+    for j in range(n):
+
+        # looks for the pivot in the column
+        for i in range(m):
+            # if a 1 is found at the i,j value
+            # print(i, j, matrix[i][j])
+            if(matrix[i][j] == 1):
+                pivot[i] = 1
+                # records the corresponding value for j where the pivot occurs
+                pivot_dict[j]=i
+                # adds the two rows using mod 2 addition
+                for k in range(0,j):
+                    if (matrix[i][k] == 1):
+                        for row in range(m):
+                            matrix[row][k] = (matrix[row][j] + matrix[row][k])%2
+
+                for k in range(j+1,n):
+                    if (matrix[i][k] == 1):
+                        for row in range(m):
+                            matrix[row][k] = (matrix[row][j] + matrix[row][k])%2
+                break
+    print(matrix)
+    # stores which rows are dependent
+    
+    ret_all = []
+    for i in range(m):
+        ret = []
+        # if there is a row that isnt a pivot, then it finds all the 1's in the row
+        #  and the corresponding rows to those ones
+        if pivot[i] == 0:
+            ret.append(i)
+            for key, col_value in enumerate(matrix[i]):
+                if col_value == 1:
+                    ret.append(pivot_dict[key])
+            ret_all.append(ret)
+                        
+    return ret_all
+
+def find_solution(dependent_rows, xlist, smooth_nums, N):
+    A = 1
+    b = 1
+    for i in dependent_rows:
+        A *= smooth_nums[i]
+        b *= xlist[i]
+
+    a = isqrt(A)
+    
+    factor = gcd((b-a)%N,N)
+    return factor
 
 #main function
 def QS(n, B, I):
@@ -220,10 +295,55 @@ def QS(n, B, I):
         return factor, N/factor
 
     #Need to find row dependency
-    
-    
+    row_dependencies = gaussian_elimiate(M_transpose_matrix)
+    print(row_dependencies)
 
-        
+    # iterate and check all dependent rows
+    
+    # for dependency in row_dependencies:
+    #     a = 1
+    #     b = 1
+    #     for idex in dependency:
+    #         a = (a * smooth_nums[idex])
+    #         b = (b * xlist[idex]) % N
+    #     a_rt = sqrt(a) % N
+    #     print(a_rt)
+    #     print((a_rt-b)%N)
+    #     gcd_ab = gcd((a_rt-b)%N, N)
+    #     print(gcd_ab)
+    #     if not gcd_ab == 1 or gcd_ab == N:
+    #         return gcd_ab, N/gcd_ab
+    for dependency in row_dependencies:
+        factor = find_solution(dependency, xlist, smooth_nums, N)
+        if factor == 1 or factor == N:
+            print('try again')
+        else:
+            print('factor found')
+            return factor, N/factor
+
+    # first_val = tonelli(a, N)
+    
+    
+    # first_val = tonelli(b, N)
+
+def calc_B_X(N,C_b,C_x):
+    ln = log(N)
+    B = int(exp((1/2 + C_b)*math.pow((ln*log(ln)),1/2)))
+    X = int(math.pow(N, 1/2 + C_x) - isqrt(N))
+    return B,X
+
 
 if __name__ == "__main__":
-    QS(8051, 300, 2500)
+    N = 16921456439215439701
+    N = 46839566299936919234246726809
+    # N = 1811706971
+    C_b = .125
+    C_x = .00000003
+    B, I = calc_B_X(N, C_b, C_x)
+    # print(B,I)
+    # B = 8000
+    # I = 300000
+    B = 4000
+    I = 25000000
+    print("The two factors of " + str(N) + " are " + str(QS(N,B,I)))
+    print(calc_B_X(N, C_b, C_x))
