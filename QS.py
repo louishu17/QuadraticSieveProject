@@ -1,7 +1,7 @@
-import numpy as np
 import math
+import time
 from math import sqrt, exp, log
-from gaussian_eliminate import gaussian_elimiate
+
 
 
 def gcd(a,b): # Euclid's algorithm
@@ -174,7 +174,7 @@ def build_matrix(smooth_nums, factor_base):
         M.append(exp_vector)
     
     print("Matrix built:")
-    mprint(M)
+    # mprint(M)
     # return False, transpose(M), -1
     return False, M, -1
 
@@ -192,8 +192,8 @@ def transpose(matrix):
 def gaussian_elimiate(matrix):
     m = len(matrix)
     n = len(matrix[0])
-    print(m)
-    print(n)
+    # print(m)
+    # print(n)
     # if there are less rows than columns, then there wouldn't be a linear dependence
     if m < n:
         print("error")
@@ -224,7 +224,7 @@ def gaussian_elimiate(matrix):
                         for row in range(m):
                             matrix[row][k] = (matrix[row][j] + matrix[row][k])%2
                 break
-    print(matrix)
+    # print(matrix)
     # stores which rows are dependent
     
     ret_all = []
@@ -258,6 +258,8 @@ def QS(n, B, I):
 
     global N
     global root
+    sieve_time = 0
+    matrix_time = 0
 
     N, root= n, int(sqrt(n))
     print(N, root)
@@ -274,14 +276,17 @@ def QS(n, B, I):
 
     print("Looking for {} {}-smooth numbers...".format(F+1, B))
     #find B-smooth numbers, using sieve and Tonelli-Shanks
-    smooth_nums, xlist = find_smooth(factor_base, N, I)
+    t = time.process_time()
 
+    
+    smooth_nums, xlist = find_smooth(factor_base, N, I)
+    sieve_time = time.process_time() - t
     print("Found {} smooth numbers.".format(len(smooth_nums)))
 
-    print(smooth_nums)
+    # print(smooth_nums)
 
     if len(smooth_nums) < len(factor_base):
-        return("Not enough smooth numbers. Increase the sieve interval or size of the factor base.")
+        return None
     
     print("Building exponent matrix...")
     #builds exponent matrix mod 2 from B-smooth numbers
@@ -292,12 +297,15 @@ def QS(n, B, I):
     if is_square:
         factor = gcd(xlist[index] - sqrt(M_transpose_matrix), N)
         print("Found a square!")
-        return factor, N/factor
+        return sieve_time, matrix_time, factor, N/factor
 
     #Need to find row dependency
+    t = time.process_time()
+    # print("The two factors of " + str(N) + " are " + str())
+    
     row_dependencies = gaussian_elimiate(M_transpose_matrix)
-    print(row_dependencies)
-
+    matrix_time = time.process_time() - t
+    
     # iterate and check all dependent rows
     
     # for dependency in row_dependencies:
@@ -319,7 +327,7 @@ def QS(n, B, I):
             print('try again')
         else:
             print('factor found')
-            return factor, N/factor
+            return sieve_time, matrix_time, factor, N/factor
 
     # first_val = tonelli(a, N)
     
@@ -328,8 +336,16 @@ def QS(n, B, I):
 
 def calc_B_X(N,C_b,C_x):
     ln = log(N)
+    # print(ln)
     B = int(exp((1/2 + C_b)*math.pow((ln*log(ln)),1/2)))
     X = int(math.pow(N, 1/2 + C_x) - isqrt(N))
+    return B,X
+
+def calc_B_X_2(N):
+    ln = log(N)
+    # print(ln)
+    B = int(math.pow(exp(math.pow(ln*log(ln),1/2)),sqrt(2)/3))
+    X = int(math.pow(exp(math.pow(ln*log(ln),1/2)),3*sqrt(2)/4))
     return B,X
 
 
@@ -337,13 +353,93 @@ if __name__ == "__main__":
     N = 16921456439215439701
     N = 46839566299936919234246726809
     # N = 1811706971
-    C_b = .125
-    C_x = .00000003
-    B, I = calc_B_X(N, C_b, C_x)
-    # print(B,I)
-    # B = 8000
-    # I = 300000
-    B = 4000
-    I = 25000000
-    print("The two factors of " + str(N) + " are " + str(QS(N,B,I)))
-    print(calc_B_X(N, C_b, C_x))
+    C_b = .1
+    C_x = .0000000003
+    B, I = calc_B_X_2(N)
+    print(B,I)
+    # t = time.process_time()
+    # #do some stuff
+    # elapsed_time = time.process_time() - t
+    # # B = 8000
+    # # I = 300000
+    B = 8800
+    I = 1050000
+    t = time.process_time()
+    # print("The two factors of " + str(N) + " are " + str(QS(N,B,I)))
+    print(str(QS(N,B,I)))
+    print("sieve time, matrix time, factor, other factor: (for B = " + str(B) + " and I = " + str(I) + ")")
+    elapsed_time = time.process_time() - t
+    print("the elapsed_time is: " + str(elapsed_time))
+    # print(calc_B_X(N, C_b, C_x))
+    # time_dict = {}
+    # with open('times.txt', 'w') as f:
+    #     f.write("For N = " + str(N))
+    #     for B in [2000, 3000, 5000, 8000, 9000]:
+    #     # for B in range(5,6):
+    #         for I in [100000, 300000, 5000000, 1500000, 25000000, 75000000]:
+    #         # for I in [25000000]:
+                
+    #             total_time = 0
+    #             sieve_total_time = 0
+    #             gaussian_total_time = 0
+    #             trials = 2
+    #             time_array = []
+    #             sieve_time_array = []
+    #             gaussian_time_array = []
+    #             total_trials = 0
+    #             for _ in range(trials):
+    #                 t = time.process_time()
+    #                 
+                    # composed = QS(N,B,I)
+                    # elapsed_time = time.process_time() - t
+    #                 if composed:
+    #                     sieve_time, gaussian_time, factor1, factor2 = composed
+    #                     sieve_total_time += sieve_time
+    #                     gaussian_total_time += gaussian_time
+    #                     print()
+                        
+    #                     total_time += elapsed_time
+    #                     time_array.append(elapsed_time)
+    #                     sieve_time_array.append(sieve_time)
+    #                     gaussian_time_array.append(gaussian_time)
+    #                     total_trials += 1
+    #             if not B in time_dict:
+    #                 time_dict[B] = {}
+
+    #             if not I in time_dict[B]:
+    #                 time_dict[B][I] = {}
+    #             if not total_trials == 0:
+    #                 time_dict[B][I]['avg'] = total_time/total_trials
+    #                 time_dict[B][I]['sieve_avg'] = sieve_total_time/total_trials
+    #                 time_dict[B][I]['gaussian_avg'] = gaussian_total_time/total_trials
+    #             else:
+    #                 time_dict[B][I]['avg'] = 0
+    #                 time_dict[B][I]['sieve_avg'] = 0
+    #                 time_dict[B][I]['gaussian_avg'] = 0
+
+    #             time_dict[B][I]['times'] = time_array
+                
+    #             time_dict[B][I]['sieve_times'] = sieve_time_array
+                
+    #             time_dict[B][I]['gaussian_times'] = gaussian_time_array
+
+    #             f.write('The average time for B = ' + str(B) + ' and I = ' + str(I) \
+    #                 + " is " + str(time_dict[B][I]['avg']) + ". (values = " + str(time_array) + ")")
+    #             f.write('The average time for B = ' + str(B) + ' and I = ' + str(I) \
+    #                 + " is " + str(time_dict[B][I]['sieve_avg']) + ". (values = " + str(sieve_time_array) + ")")
+    #             f.write('The average time for B = ' + str(B) + ' and I = ' + str(I) \
+    #                 + " is " + str(time_dict[B][I]['gaussian_avg']) + ". (values = " + str(gaussian_time_array) + ")")
+    
+    # with open('times.txt', 'w') as f:
+    #     f.write("For N = " + str(N))
+    #     for B, B_values in time_dict.items():
+    #         for I, I_values in B_values.items():
+                
+    #             f.write('The average time for B = ' + str(B) + ' and I = ' + str(I) \
+    #                 + " is " + str(I_values['avg']) + ". (values = " + str(I_values['times']) + ") ")
+    #             f.write('The average sieve time for B = ' + str(B) + ' and I = ' + str(I) \
+    #             + " is " + str(I_values['sieve_avg']) + ". (values = " + str(I_values['sieve_times']) + ") ")
+    #             f.write('The average gaussian time for B = ' + str(B) + ' and I = ' + str(I) \
+    #             + " is " + str(I_values['gaussian_avg']) + ". (values = " + str(I_values['gaussian_times']) + ") ")
+
+            
