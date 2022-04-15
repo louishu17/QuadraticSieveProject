@@ -1,5 +1,3 @@
-import numpy as np
-
 
 def gaussian_elimiate(matrix):
     m = len(matrix)

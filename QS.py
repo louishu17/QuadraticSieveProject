@@ -1,6 +1,9 @@
 import math
 import time
 from math import sqrt, exp, log
+import os
+from subprocess import Popen
+import pickle
 
 
 
@@ -89,10 +92,12 @@ Find B-smooth numbers, using sieve and Tonelli-Shanks
 def find_smooth(factor_base, N, I):
     #generates a sequence from y(x) = x^2 - N starting from sqrt(N)
     def generate_sieve(N, I):
-        sieve_seq = [x**2 - N for x in range(root-I, root + I)]
+        # sieve_seq = [math.pow(x,2) - N for x in range(root-I, root + I)]
+        sieve_seq = [x*x - N for x in range(root-I, root + I)]
         return sieve_seq
-    
+    t = time.process_time()
     sieve_seq = generate_sieve(N,I)
+    print("time to generate seive: " + str(time.process_time() - t))
     sieve_list = sieve_seq.copy()
     
     if factor_base[0] == 2:
@@ -106,6 +111,7 @@ def find_smooth(factor_base, N, I):
             while sieve_list[j] % 2 == 0:
                 sieve_list[j] //= 2
     
+    t = time.process_time()
     for p in factor_base[1:]:
         residues = tonelli(N, p)
 
@@ -118,6 +124,7 @@ def find_smooth(factor_base, N, I):
             for i in range(((r-root+ I) % p) + I, 0, -p):
                 while sieve_list[i] % p == 0:
                     sieve_list[i] //= p
+    print("time to divide by all primes in seive: " + str(time.process_time() - t))
 
     B_smooth_nums = []
     xlist = []
@@ -189,7 +196,8 @@ def transpose(matrix):
         new_matrix.append(new_row)
     return(new_matrix)
 
-def gaussian_elimiate(matrix):
+def gaussian_eliminate_and_solve(matrix, xlist, smooth_nums, N):
+    t = time.process_time()
     m = len(matrix)
     n = len(matrix[0])
     # print(m)
@@ -238,6 +246,17 @@ def gaussian_elimiate(matrix):
                 if col_value == 1:
                     ret.append(pivot_dict[key])
             ret_all.append(ret)
+
+    print("gaussian elimation took: " + str(time.process_time()-t))
+
+    for dependency in ret_all:
+        factor = find_solution(dependency, xlist, smooth_nums, N)
+        if factor == 1 or factor == N:
+            print('try again')
+        else:
+            print('factor found')
+            return factor, N/factor
+            # return sieve_time, matrix_time, 
                         
     return ret_all
 
@@ -285,49 +304,78 @@ def QS(n, B, I):
 
     # print(smooth_nums)
 
-    if len(smooth_nums) < len(factor_base):
+    if len(smooth_nums) <= len(factor_base):
         return None
     
     print("Building exponent matrix...")
     #builds exponent matrix mod 2 from B-smooth numbers
     #M_transpose_matrix is either the B-smooth matrix or just one B-smooth number that is a square
-    is_square, M_transpose_matrix, index = build_matrix(smooth_nums,factor_base)
+    t = time.process_time()
+    is_square, M_matrix, index = build_matrix(smooth_nums,factor_base)
+    print("matrix loading takes " + str(time.process_time() - t))
 
     #case when we found a B-smooth number that is a square
     if is_square:
-        factor = gcd(xlist[index] - sqrt(M_transpose_matrix), N)
+        factor = gcd(xlist[index] - sqrt(M_matrix), N)
         print("Found a square!")
         return sieve_time, matrix_time, factor, N/factor
+
+    t = time.process_time()
+    p_file = open('matrix.pkl', 'wb')
+    pickle.dump(M_matrix, p_file)
+    p_file.close()
+    print("pickle dump takes " + str(time.process_time() - t))
+
+    p_file = open('smooth.pkl', 'wb')
+    pickle.dump(smooth_nums, p_file)
+    p_file.close()
+
+    p_file = open('xlist.pkl', 'wb')
+    pickle.dump(xlist, p_file)
+    p_file.close()
+
+    p_file = open('N.pkl', 'wb')
+    pickle.dump(N, p_file)
+    p_file.close()
+
+    # t = time.process_time()
+    # p_file = open('matrix.pkl', 'rb')
+    # pickle.load(p_file)
+    # p_file.close()
+    # print("pickle load takes " + str(time.process_time() - t))
+
+    
 
     #Need to find row dependency
     t = time.process_time()
     # print("The two factors of " + str(N) + " are " + str())
     
-    row_dependencies = gaussian_elimiate(M_transpose_matrix)
+    # row_dependencies = gaussian_eliminate(M_matrix)
+
+    
+
+    # os.popen('''pypy3 -c "'/Users/herbertwang/Duke 2024/Sophomore Year/Math 404/QuadraticSieveProject/QS.py' import *; row_dependencies = gaussian_eliminate(M_matrix)"''', 'w')
+    cmd = '''pypy3 -c "from QS import *; import pickle; import sys; p_file = open('matrix.pkl', 'rb');\
+        M_matrix = pickle.load(p_file); p_file = open('smooth.pkl', 'rb');\
+        smooth_nums = pickle.load(p_file); p_file = open('xlist.pkl', 'rb');\
+        xlist = pickle.load(p_file); p_file = open('N.pkl', 'rb');\
+        N = pickle.load(p_file); print(gaussian_eliminate_and_solve(M_matrix, xlist, smooth_nums, N)); exit(); print(1)"'''
+    p = Popen(cmd, shell=True)
+    
     matrix_time = time.process_time() - t
+
+    print("row dependencies acquired")
     
     # iterate and check all dependent rows
     
     # for dependency in row_dependencies:
-    #     a = 1
-    #     b = 1
-    #     for idex in dependency:
-    #         a = (a * smooth_nums[idex])
-    #         b = (b * xlist[idex]) % N
-    #     a_rt = sqrt(a) % N
-    #     print(a_rt)
-    #     print((a_rt-b)%N)
-    #     gcd_ab = gcd((a_rt-b)%N, N)
-    #     print(gcd_ab)
-    #     if not gcd_ab == 1 or gcd_ab == N:
-    #         return gcd_ab, N/gcd_ab
-    for dependency in row_dependencies:
-        factor = find_solution(dependency, xlist, smooth_nums, N)
-        if factor == 1 or factor == N:
-            print('try again')
-        else:
-            print('factor found')
-            return sieve_time, matrix_time, factor, N/factor
+    #     factor = find_solution(dependency, xlist, smooth_nums, N)
+    #     if factor == 1 or factor == N:
+    #         print('try again')
+    #     else:
+    #         print('factor found')
+
+    #         return sieve_time, matrix_time, factor, N/factor
 
     # first_val = tonelli(a, N)
     
@@ -352,6 +400,7 @@ def calc_B_X_2(N):
 if __name__ == "__main__":
     N = 16921456439215439701
     N = 46839566299936919234246726809
+    # N = 6172835808641975203638304919691358469663
     # N = 1811706971
     C_b = .1
     C_x = .0000000003
@@ -362,8 +411,16 @@ if __name__ == "__main__":
     # elapsed_time = time.process_time() - t
     # # B = 8000
     # # I = 300000
-    B = 8800
-    I = 1050000
+    # B = 500000
+    # I = 60000000
+    # B = 5000
+    # I = 2500000
+    # B = 400000
+    # I = 1100000
+    B = 5000
+    I = 2500000
+    B = 50000
+    I = 1100000
     t = time.process_time()
     # print("The two factors of " + str(N) + " are " + str(QS(N,B,I)))
     print(str(QS(N,B,I)))
