@@ -53,8 +53,9 @@ def find_base(N, B):
             factor_base.append(p)
     return factor_base
 
-
-def tonelli(n, p): #tonelli-shanks to solve modular square root, x^2 = N (mod p)
+#tonelli-shanks to solve modular square root, x^2 = N (mod p)
+# borrowed from https://rosettacode.org/wiki/Tonelli-Shanks_algorithm
+def tonelli(n, p): 
     assert legendre(n, p) == 1, "not a square (mod p)"
     q = p - 1
     s = 0
