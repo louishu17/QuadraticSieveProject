@@ -4,6 +4,7 @@ from math import sqrt, exp, log
 import os
 from subprocess import Popen
 import pickle
+from itertools import chain
 
 
 
@@ -15,13 +16,48 @@ def gcd(a,b): # Euclid's algorithm
     else:
         return gcd(b,a)
     
-def isqrt(n): # Newton's method, returns exact int for large squares
-    x = n
-    y = (x + 1) // 2
-    while y < x:
-        x = y
-        y = (x + n // x) // 2
-    return x
+# def isqrt(n): # Newton's method, returns exact int for large squares
+#     x = n
+#     y = (x + 1) // 2
+#     while y < x:
+#         # print("dividing")
+#         x = y
+#         y = (x + n // x) // 2
+#     return x
+
+# def isqrt(n):
+#         """
+#         Return the integer part of the square root of the input.
+#         """
+#         n = operator.index(n)
+#         if n < 0:
+#             raise ValueError("isqrt() argument must be nonnegative")
+#         if n == 0:
+#             return 0
+#         c = (n.bit_length() - 1) // 2
+#         a = 1
+#         d = 0
+#         for s in reversed(range(c.bit_length())):
+#             # Loop invariant: (a-1)**2 < (n >> 2*(c - d)) < (a+1)**2
+#             e = d
+#             d = c >> s
+#             a = (a << d - e - 1) + (n >> 2*c - e - d + 1) // a
+#         return a - (a*a > n)
+
+def isqrt_aux(c, n):
+      if c == 0:
+          return 1
+      else:
+          k = (c - 1) // 2
+          a = isqrt_aux(c // 2, n >> 2*k + 2)
+          return (a << k) + (n >> k+2) // a
+
+def isqrt(n):
+      if n == 0:
+          return 0
+      else:
+          a = isqrt_aux((n.bit_length() - 1) // 2, n)
+          return a - 1 if n < a * a else a
 
 def sieveOfEratosthenes(n):
     isPrime = [True for _ in range(n+1)]
@@ -46,7 +82,7 @@ def mprint(M): #prints a matrix in readable form
 def find_base(N, B): 
     factor_base = []
     primes = sieveOfEratosthenes(B)
-    print("Primes under " + str(B) + ": " + str(primes))
+    # print("Primes under " + str(B) + ": " + str(primes))
 
     for p in primes:
         if legendre(N, p) == 1:
@@ -134,10 +170,10 @@ def find_smooth(factor_base, N, I):
         if len(B_smooth_nums) >= len(factor_base) + 1:
             break
         #found a b-smooth number    
-        if sieve_list[i] == 1 or sieve_list == -1:
+        if sieve_list[i] == 1 or sieve_list[i] == -1:
             B_smooth_nums.append(sieve_seq[i])
             xlist.append(i+root-I)
-    
+
     return B_smooth_nums, xlist
 
 """
@@ -147,7 +183,7 @@ def factor(n, factor_base):
     factors = {}
 
     if n < 0:
-        factors.append(-1)
+        factors[-1] = 1
     for p in factor_base:
         if p == -1:
             continue
@@ -163,7 +199,7 @@ def factor(n, factor_base):
 """
 Build exponent vectors mod 2 from B-smooth numbers, then combines into a matrix
 """
-def build_matrix(smooth_nums, factor_base):
+def build_matrix(smooth_nums, factor_base, xlist):
     M = []
     factor_base.insert(0,-1)
 
@@ -176,14 +212,19 @@ def build_matrix(smooth_nums, factor_base):
         
         #we found a square number already
         if 1 not in exp_vector:
-            return True, n, index
-        
+            factors = gcd(xlist[index] - sqrt(n), N)
+            print("Found a square!")
+            print("the factor of N is: " + str((factors, N//factors)))
+            exit()
+            
         M.append(exp_vector)
     
     print("Matrix built:")
     # mprint(M)
     # return False, transpose(M), -1
-    return False, M, -1
+    # print(len(M))
+    # print(len(M[0]))
+    return M
 
 
 def transpose(matrix):
@@ -196,10 +237,10 @@ def transpose(matrix):
         new_matrix.append(new_row)
     return(new_matrix)
 
-def gaussian_eliminate_and_solve(matrix, xlist, smooth_nums, N):
+def gaussian_eliminate_and_solve(matrix2, xlist, smooth_nums, N):
     t = time.process_time()
-    m = len(matrix)
-    n = len(matrix[0])
+    m = len(matrix2)
+    n = len(matrix2[0])
     # print(m)
     # print(n)
     # if there are less rows than columns, then there wouldn't be a linear dependence
@@ -208,46 +249,47 @@ def gaussian_eliminate_and_solve(matrix, xlist, smooth_nums, N):
         raise Exception("not enough data") 
     # set a m length array to locate the rows with pivots
     pivot = [0]*m
-   
+    
     pivot_dict = {}
-    
-    for j in range(n):
+    matrix = transpose(matrix2)
+    for i in range(n):
 
-        # looks for the pivot in the column
-        for i in range(m):
-            # if a 1 is found at the i,j value
-            # print(i, j, matrix[i][j])
+        # looks for the pivot in the column (in the row of the new matrix)
+        for j in range(m):
+        
             if(matrix[i][j] == 1):
-                pivot[i] = 1
+                pivot[j] = 1
                 # records the corresponding value for j where the pivot occurs
-                pivot_dict[j]=i
+                pivot_dict[i]=j
                 # adds the two rows using mod 2 addition
-                for k in range(0,j):
-                    if (matrix[i][k] == 1):
+                for k in range(0,i):
+                    if (matrix[k][j] == 1):
                         for row in range(m):
-                            matrix[row][k] = (matrix[row][j] + matrix[row][k])%2
+                            matrix[k][row] = (matrix[i][row] + matrix[k][row])%2
 
-                for k in range(j+1,n):
-                    if (matrix[i][k] == 1):
+                for k in range(i+1,n):
+                    if (matrix[k][j] == 1):
                         for row in range(m):
-                            matrix[row][k] = (matrix[row][j] + matrix[row][k])%2
+                            matrix[k][row] = (matrix[i][row] + matrix[k][row])%2
                 break
-    # print(matrix)
-    # stores which rows are dependent
-    
+
+
+    print("gaussian elimation took: " + str(time.process_time()-t))
+    t = time.process_time()
     ret_all = []
-    for i in range(m):
+
+    for j in range(m):
         ret = []
         # if there is a row that isnt a pivot, then it finds all the 1's in the row
         #  and the corresponding rows to those ones
-        if pivot[i] == 0:
-            ret.append(i)
-            for key, col_value in enumerate(matrix[i]):
-                if col_value == 1:
-                    ret.append(pivot_dict[key])
+        if pivot[j] == 0:
+            ret.append(j)
+            for i in range(len(matrix)):
+                if matrix[i][j] == 1:
+                    ret.append(pivot_dict[i])
             ret_all.append(ret)
-
-    print("gaussian elimation took: " + str(time.process_time()-t))
+    print("solving rows took: " + str(time.process_time()-t))
+    
 
     for dependency in ret_all:
         factor = find_solution(dependency, xlist, smooth_nums, N)
@@ -255,7 +297,7 @@ def gaussian_eliminate_and_solve(matrix, xlist, smooth_nums, N):
             print('try again')
         else:
             print('factor found')
-            return factor, N/factor
+            return factor, N//factor
             # return sieve_time, matrix_time, 
                         
     return ret_all
@@ -266,9 +308,10 @@ def find_solution(dependent_rows, xlist, smooth_nums, N):
     for i in dependent_rows:
         A *= smooth_nums[i]
         b *= xlist[i]
-
+    print("multiplication done")
     a = isqrt(A)
-    
+    # a = isqrt(A)
+    print("sqrt done")
     factor = gcd((b-a)%N,N)
     return factor
 
@@ -291,7 +334,7 @@ def QS(n, B, I):
 
     global F
     F = len(factor_base)
-    print("Factor Base: " + str(factor_base))
+    # print("Factor Base: " + str(factor_base))
 
     print("Looking for {} {}-smooth numbers...".format(F+1, B))
     #find B-smooth numbers, using sieve and Tonelli-Shanks
@@ -310,21 +353,12 @@ def QS(n, B, I):
     print("Building exponent matrix...")
     #builds exponent matrix mod 2 from B-smooth numbers
     #M_transpose_matrix is either the B-smooth matrix or just one B-smooth number that is a square
-    t = time.process_time()
-    is_square, M_matrix, index = build_matrix(smooth_nums,factor_base)
-    print("matrix loading takes " + str(time.process_time() - t))
+    
 
-    #case when we found a B-smooth number that is a square
-    if is_square:
-        factor = gcd(xlist[index] - sqrt(M_matrix), N)
-        print("Found a square!")
-        return sieve_time, matrix_time, factor, N/factor
 
-    t = time.process_time()
-    p_file = open('matrix.pkl', 'wb')
-    pickle.dump(M_matrix, p_file)
+    p_file = open('factor_base.pkl', 'wb')
+    pickle.dump(factor_base, p_file)
     p_file.close()
-    print("pickle dump takes " + str(time.process_time() - t))
 
     p_file = open('smooth.pkl', 'wb')
     pickle.dump(smooth_nums, p_file)
@@ -355,16 +389,20 @@ def QS(n, B, I):
     
 
     # os.popen('''pypy3 -c "'/Users/herbertwang/Duke 2024/Sophomore Year/Math 404/QuadraticSieveProject/QS.py' import *; row_dependencies = gaussian_eliminate(M_matrix)"''', 'w')
-    cmd = '''pypy3 -c "from QS import *; import pickle; import sys; p_file = open('matrix.pkl', 'rb');\
-        M_matrix = pickle.load(p_file); p_file = open('smooth.pkl', 'rb');\
+    cmd = '''pypy3 -c "from QS import *; import pickle; import time; t = time.process_time(); \
+        p_file = open('factor_base.pkl', 'rb');\
+        factor_base = pickle.load(p_file); p_file = open('smooth.pkl', 'rb');\
         smooth_nums = pickle.load(p_file); p_file = open('xlist.pkl', 'rb');\
         xlist = pickle.load(p_file); p_file = open('N.pkl', 'rb');\
-        N = pickle.load(p_file); print(gaussian_eliminate_and_solve(M_matrix, xlist, smooth_nums, N)); exit(); print(1)"'''
+        N = pickle.load(p_file);\
+        M_matrix = build_matrix(smooth_nums,factor_base, xlist);\
+        print(gaussian_eliminate_and_solve(M_matrix, xlist, smooth_nums, N));\
+        print('total time to load pickle, build and solve is: ' +  str(time.process_time() - t)); exit()"'''
     p = Popen(cmd, shell=True)
     
-    matrix_time = time.process_time() - t
+    print('popen time is: ' +  str(time.process_time() - t))
 
-    print("row dependencies acquired")
+    
     
     # iterate and check all dependent rows
     
@@ -381,6 +419,7 @@ def QS(n, B, I):
     
     
     # first_val = tonelli(b, N)
+    return "seiving done, waiting on pypy..."
 
 def calc_B_X(N,C_b,C_x):
     ln = log(N)
@@ -400,10 +439,10 @@ def calc_B_X_2(N):
 if __name__ == "__main__":
     N = 16921456439215439701
     N = 46839566299936919234246726809
-    # N = 6172835808641975203638304919691358469663
+    N = 6172835808641975203638304919691358469663
     # N = 1811706971
-    C_b = .1
-    C_x = .0000000003
+    C_b = .3
+    C_x = 0
     B, I = calc_B_X_2(N)
     print(B,I)
     # t = time.process_time()
@@ -419,14 +458,34 @@ if __name__ == "__main__":
     # I = 1100000
     B = 5000
     I = 2500000
-    B = 50000
-    I = 1100000
+    # pretty good w transpose shit for second number
+    B = 17000
+    I = 255000
+    # pretty good w transpose shit for third number
+    B = 150000
+    I = 40000000
+    B = 132000
+    I = 45000000
+    # B = 400000
+    # I = 500000
+    # good with first number
+    # B = 4050
+    # I = 28800
+
     t = time.process_time()
-    # print("The two factors of " + str(N) + " are " + str(QS(N,B,I)))
-    print(str(QS(N,B,I)))
+    # # print("The two factors of " + str(N) + " are " + str(QS(N,B,I)))
+    print(QS(N,B,I))
     print("sieve time, matrix time, factor, other factor: (for B = " + str(B) + " and I = " + str(I) + ")")
     elapsed_time = time.process_time() - t
     print("the elapsed_time is: " + str(elapsed_time))
+
+    # n = pow(N,300)
+    # t = time.process_time()
+    # print(isqrt(n))
+    # print("the elapsed_time is: " + str(time.process_time() - t))
+
+
+
     # print(calc_B_X(N, C_b, C_x))
     # time_dict = {}
     # with open('times.txt', 'w') as f:
