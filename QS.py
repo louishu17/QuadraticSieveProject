@@ -1,12 +1,28 @@
-import math
 import time
-from math import sqrt, exp, log
+from math import sqrt, exp, log, log2
 import os
 from subprocess import Popen
 import pickle
+from itertools import count
 
 
-
+def is_prime(n):
+  if n == 2 or n == 3: return True
+  if n < 2 or n%2 == 0: return False
+  if n < 9: return True
+  if n%3 == 0: return False
+  r = int(n**0.5)
+  # since all primes > 3 are of the form 6n ± 1
+  # start with f=5 (which is prime)
+  # and test f, f+2 for being prime
+  # then loop by 6. 
+  f = 5
+  while f <= r:
+    print('\t',f)
+    if n % f == 0: return False
+    if n % (f+2) == 0: return False
+    f += 6
+  return True   
 def gcd(a,b): # Euclid's algorithm
     if b == 0:
         return a
@@ -52,7 +68,86 @@ def find_base(N, B):
         if legendre(N, p) == 1:
             factor_base.append(p)
     return factor_base
+def modular_sqrt(a, p):
+    """ Find a quadratic residue (mod p) of 'a'. p
+        must be an odd prime.
 
+        Solve the congruence of the form:
+            x^2 = a (mod p)
+        And returns x. Note that p - x is also a root.
+
+        0 is returned is no square root exists for
+        these a and p.
+
+        The Tonelli-Shanks algorithm is used (except
+        for some simple cases in which the solution
+        is known from an identity). This algorithm
+        runs in polynomial time (unless the
+        generalized Riemann hypothesis is false).
+    """
+    # Simple cases
+    #
+    if legendre(a, p) != 1:
+        return 0
+    elif a == 0:
+        return 0
+    elif p == 2:
+        return 0
+    elif p % 4 == 3:
+        return pow(a, (p + 1) / 4, p)
+
+    # Partition p-1 to s * 2^e for an odd s (i.e.
+    # reduce all the powers of 2 from p-1)
+    #
+    s = p - 1
+    e = 0
+    while s % 2 == 0:
+        s /= 2
+        e += 1
+
+    # Find some 'n' with a legendre symbol n|p = -1.
+    # Shouldn't take long.
+    #
+    n = 2
+    while legendre(n, p) != -1:
+        n += 1
+
+    # Here be dragons!
+    # Read the paper "Square roots from 1; 24, 51,
+    # 10 to Dan Shanks" by Ezra Brown for more
+    # information
+    #
+
+    # x is a guess of the square root that gets better
+    # with each iteration.
+    # b is the "fudge factor" - by how much we're off
+    # with the guess. The invariant x^2 = ab (mod p)
+    # is maintained throughout the loop.
+    # g is used for successive powers of n to update
+    # both a and b
+    # r is the exponent - decreases with each update
+    #
+    x = pow(a, (s + 1) / 2, p)
+    b = pow(a, s, p)
+    g = pow(n, s, p)
+    r = e
+
+    while True:
+        t = b
+        m = 0
+        for m in xrange(r):
+            if t == 1:
+                break
+            t = pow(t, 2, p)
+
+        if m == 0:
+            return x
+
+        gs = pow(g, 2 ** (r - m - 1), p)
+        g = (gs * gs) % p
+        x = (x * gs) % p
+        b = (b * g) % p
+        r = m
 
 def tonelli(n, p): #tonelli-shanks to solve modular square root, x^2 = N (mod p)
     assert legendre(n, p) == 1, "not a square (mod p)"
@@ -86,6 +181,69 @@ def tonelli(n, p): #tonelli-shanks to solve modular square root, x^2 = N (mod p)
 
     return (r,p-r)
 
+def compute_modular_sqrts(factor_base):
+    tsqrt = []
+    for p in factor_base:
+        tsqrt.append(int(modular_sqrt(N,p)))
+    return tsqrt
+
+def compute_log_2(factor_base):
+    tlog = []
+    for p in factor_base:
+        tlog.append(log(p,10))
+    return tlog
+
+def mod_inv(a, m):
+  a = int(a%m)
+  x, u = 0, 1
+  while a:
+    x, u = u, x - (m/a)*u
+    m, a = a, m%a
+  return x
+def generate_polynomials(factor_base, N, I):
+
+
+    root_2N = isqrt(2*N)
+    root_A = isqrt(root_2N)/I
+
+    smooths = []
+    partials = {}
+    polynomials = 0
+    while True:
+        while True:
+            root_A = nextprime(root_A)
+            leg = legendre(N, root_A)
+            if  leg == 1:
+                break
+            elif leg == 0:
+                return root_A
+        polynomials += 1
+        a = int(root_A ** 2)
+        b = modular_sqrt(N,root_A)
+        b = int((b-(b*b-N) * mod_inv(2*b, root_A)) % a)
+        c = int((b*b-N)/a)
+        tsqrt = compute_modular_sqrts(factor_base)
+        tlog = compute_log_2(factor_base)
+        for i,p in enumerate(factor_base):
+            ainv = pow(a,p-2,p)
+            sol1 = ainv*(tsqrt[i] - b) % p
+            sol2 = ainv*(-tsqrt[i] - b) % p
+    return
+
+def nextprime(n):
+    if n < 2: return 2
+    if n == 2: return 3
+    n = (n + 1) | 1    # first odd larger than n
+    m = n % 6
+    if m == 3:
+        if is_prime(n+2): return n+2
+        n += 4
+    elif m == 5:
+        if is_prime(n): return n
+        n += 2
+    for m in count(n, 6):
+        if is_prime(m  ): return m
+        if is_prime(m+4): return m+4
 """
 Find B-smooth numbers, using sieve and Tonelli-Shanks
 """
@@ -147,7 +305,7 @@ def factor(n, factor_base):
     factors = {}
 
     if n < 0:
-        factors.append(-1)
+        factors[-1] = 1
     for p in factor_base:
         if p == -1:
             continue
